@@ -14,12 +14,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.example.crs.reservation.command.param.ReservationCreateBody;
 import org.example.crs.reservation.command.param.ReservationUpdateBody;
 
-@Slf4j
+/**
+ * Implements the reservations repository interface using a in-memory concurrent hash map.
+ *
+ * @see the ReservationRepository interface for more documentation.
+ */
 public class ReservationMapRepository implements ReservationRepository
 {
   private final Map<UUID, Reservation> reservations = new ConcurrentHashMap();
@@ -69,6 +71,7 @@ public class ReservationMapRepository implements ReservationRepository
       LocalDate startAt,
       Optional<UUID> ignoreId)
   {
+    // if ignoreId is not provided, the filter has not effect.
     Predicate<Reservation> filterById = ignoreId.map(id ->
         not((Reservation r) -> r.getId().equals(ignoreId.get()))
     ).orElseGet(alwaysTrue());

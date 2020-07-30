@@ -1,9 +1,9 @@
 package org.example.crs.reservation;
 
-import static akka.http.javadsl.marshallers.jackson.Jackson.marshaller;
 import static akka.http.javadsl.marshallers.jackson.Jackson.unmarshaller;
 import static akka.http.javadsl.server.PathMatchers.segment;
 import static org.example.crs.ReservationApp.OBJECT_MAPPER;
+import static org.example.crs.ReservationApp.TO_JSON;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -17,7 +17,6 @@ import org.example.crs.UnexpectedErrorResponse;
 import org.example.crs.reservation.command.ReservationCommands.CancelReservationCmd;
 import org.example.crs.reservation.command.ReservationCommands.CancelReservationResponse;
 import org.example.crs.reservation.command.ReservationCommands.Command;
-import org.example.crs.reservation.command.ReservationCommands.CommandResponse;
 import org.example.crs.reservation.command.ReservationCommands.CreateReservationCmd;
 import org.example.crs.reservation.command.ReservationCommands.CreateReservationResponse;
 import org.example.crs.reservation.command.ReservationCommands.GetAvailabilitiesCmd;
@@ -30,30 +29,29 @@ import org.example.crs.reservation.command.param.ReservationCreateBody;
 import org.example.crs.reservation.command.param.ReservationUpdateBody;
 
 import akka.actor.typed.ActorRef;
-import akka.actor.typed.ActorSystem;
 import akka.actor.typed.Scheduler;
 import akka.actor.typed.javadsl.AskPattern;
-import akka.http.javadsl.marshalling.Marshaller;
-import akka.http.javadsl.model.RequestEntity;
 import akka.http.javadsl.model.StatusCodes;
 import akka.http.javadsl.server.AllDirectives;
 import akka.http.javadsl.server.ExceptionHandler;
 import akka.http.javadsl.server.RejectionHandler;
 import akka.http.javadsl.server.Route;
 
+/**
+ * Provides the reservations routing system.
+ */
 @RequiredArgsConstructor
 public class ReservationRoute extends AllDirectives
 {
-  private static final Marshaller<CommandResponse, RequestEntity> TO_JSON = marshaller(OBJECT_MAPPER);
-
+  /**
+   * The reservations Actor.
+   */
   private final ActorRef<Command> registryActor;
-  private final Scheduler scheduler;
 
-  public ReservationRoute(ActorSystem<?> system, ActorRef<Command> registryActor)
-  {
-    this.registryActor = registryActor;
-    this.scheduler = system.scheduler();
-  }
+  /**
+   * The system scheduler.
+   */
+  private final Scheduler scheduler;
 
   /**
    * @return /reservations route
@@ -105,8 +103,10 @@ public class ReservationRoute extends AllDirectives
   }
 
   /**
-   * @return The POST /reservation/{id} routes. GET to retrieve the reservation. PUT to update the
-   * reservation.
+   * Returns a specified reservation routes. GET to retrieve the reservation. PUT to update the
+   * reservation. And DELETE to cancel the reservation.
+   *
+   * @return The /reservation/{id} routes.
    */
   private Route getReservationRoutes()
   {
@@ -137,42 +137,77 @@ public class ReservationRoute extends AllDirectives
     });
   }
 
-  private ExceptionHandler getExceptionHandler()
-  {
-    return ExceptionHandler.newBuilder()
-        .matchAny(ex -> complete(StatusCodes.INTERNAL_SERVER_ERROR, new UnexpectedErrorResponse(ex), TO_JSON))
-        .build();
-  }
-
+  /**
+   * Sends the create command.
+   *
+   * @param body The reservation create body.
+   * @return The promise of the creation response.
+   */
   private CompletionStage<CreateReservationResponse> createReservation(ReservationCreateBody body)
   {
     return AskPattern.ask(registryActor,
         ref -> new CreateReservationCmd(body, ref), Duration.ofSeconds(3), scheduler);
   }
 
+  /**
+   * Sends the update command.
+   *
+   * @param id The reservation id.
+   * @param body The reservation update body.
+   * @return The promise of the update response.
+   */
   private CompletionStage<UpdateReservationResponse> updateReservation(UUID id, ReservationUpdateBody body)
   {
     return AskPattern.ask(registryActor,
         ref -> new UpdateReservationCmd(id, body, ref), Duration.ofSeconds(3), scheduler);
   }
 
+  /**
+   * Sends the retrieval command.
+   *
+   * @param id The reservation id.
+   * @return The promise of the retrieval response.
+   */
   private CompletionStage<GetReservationResponse> getReservation(UUID id)
   {
     return AskPattern.ask(registryActor,
         ref -> new GetReservationCmd(id, ref), Duration.ofSeconds(1), scheduler);
   }
 
+  /**
+   * Sends the cancel command.
+   *
+   * @param id The reservation id.
+   * @return The promise of the cancel response.
+   */
   private CompletionStage<CancelReservationResponse> cancelReservation(UUID id)
   {
     return AskPattern.ask(registryActor,
         ref -> new CancelReservationCmd(id, ref), Duration.ofSeconds(3), scheduler);
   }
 
+  /**
+   * Sends the check availabilities command.
+   *
+   * @param maybeFrom The optional date from which we're searching availabilities.
+   * @param maybeTo The optional date to which we're searching availabilities.
+   * @return The promise of the check availabilities response.
+   */
   private CompletionStage<GetAvailabilitiesResponse> getAvailabilities(
       Optional<LocalDate> maybeFrom,
       Optional<LocalDate> maybeTo)
   {
     return AskPattern.ask(registryActor,
         ref -> new GetAvailabilitiesCmd(maybeFrom, maybeTo, ref), Duration.ofSeconds(3), scheduler);
+  }
+
+  /**
+   * @return A custom exception handler for the routes.
+   */
+  private ExceptionHandler getExceptionHandler()
+  {
+    return ExceptionHandler.newBuilder()
+        .matchAny(ex -> complete(StatusCodes.INTERNAL_SERVER_ERROR, new UnexpectedErrorResponse(ex), TO_JSON))
+        .build();
   }
 }

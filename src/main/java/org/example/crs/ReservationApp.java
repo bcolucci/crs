@@ -1,6 +1,7 @@
 package org.example.crs;
 
 import static akka.http.javadsl.ConnectHttp.toHost;
+import static akka.http.javadsl.marshallers.jackson.Jackson.marshaller;
 
 import java.text.SimpleDateFormat;
 
@@ -11,12 +12,15 @@ import org.example.crs.reservation.ReservationMapRepository;
 import org.example.crs.reservation.ReservationRegistry;
 import org.example.crs.reservation.ReservationRoute;
 import org.example.crs.reservation.ReservationService;
+import org.example.crs.reservation.command.ReservationCommands.CommandResponse;
 
 import akka.actor.typed.ActorSystem;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Adapter;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.http.javadsl.Http;
+import akka.http.javadsl.marshalling.Marshaller;
+import akka.http.javadsl.model.RequestEntity;
 import akka.stream.Materializer;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -38,6 +42,12 @@ public class ReservationApp
       .setDateFormat(new SimpleDateFormat("yyyy-MM-dd"));
 
   /**
+   * The unique instance of a CommandResponse->RequestEntity marshaller for the application. Used in
+   * the routing system.
+   */
+  public static final Marshaller<CommandResponse, RequestEntity> TO_JSON = marshaller(OBJECT_MAPPER);
+
+  /**
    * @return The main App actor.
    */
   public static Behavior createActor()
@@ -51,7 +61,7 @@ public class ReservationApp
       var config = ConfigFactory.load();
 
       var registry = ctx.spawn(ReservationRegistry.create(service), "ReservationRegistry");
-      var route = new ReservationRoute(system, registry);
+      var route = new ReservationRoute(registry, system.scheduler());
 
       var classicSystem = Adapter.toClassic(system);
       var http = Http.get(classicSystem);

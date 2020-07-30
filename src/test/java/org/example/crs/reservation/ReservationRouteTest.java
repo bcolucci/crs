@@ -70,7 +70,7 @@ public class ReservationRouteTest extends JUnitRouteTest
     var service = new ReservationService(mapRepository);
 
     registry = testkit.spawn(ReservationRegistry.create(service));
-    route = testRoute(new ReservationRoute(testkit.system(), registry).getRoute());
+    route = testRoute(new ReservationRoute(registry, testkit.system().scheduler()).getRoute());
   }
 
   @After

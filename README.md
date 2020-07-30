@@ -356,6 +356,7 @@ If I would have (a little) more time:
 * I would create a Redis implementation of the repository and test the performances with a local cluster and multiple service instances.
 * I would try to find a solution to integrate Swagger.
 * I would improve how Exceptions are designed.
+* I would add more logs.
 * I would improve the Documentation.
 * I would Dockerize the application.
 * I would deploy the app on AWS.

@@ -7,8 +7,6 @@ import static java.time.Period.ofMonths;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.example.crs.reservation.command.ReservationCommands.CancelReservationCmd;
 import org.example.crs.reservation.command.ReservationCommands.CancelReservationResponse;
 import org.example.crs.reservation.command.ReservationCommands.Command;
@@ -34,11 +32,17 @@ import akka.http.javadsl.model.StatusCodes;
 /**
  * Manages events from routing and call the service methods to do operations on reservations.
  */
-@Slf4j
 public class ReservationRegistry extends AbstractBehavior<Command>
 {
+  /**
+   * The reservations service.
+   */
   private final ReservationService service;
 
+  /**
+   * @param context The context, given by the Behavior.setup() call.
+   * @param service The reservations service.
+   */
   public ReservationRegistry(ActorContext<Command> context, ReservationService service)
   {
     super(context);
